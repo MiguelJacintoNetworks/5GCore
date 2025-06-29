@@ -1,0 +1,113 @@
+OTHER TERMINAL:
+ssh -i slice_key -F ssh_config -L 5000:localhost:5000 ubuntu@137.222.230.49
+http://localhost:5000/
+USERNAME: admin
+PASSWORD: free5gc
+CREATE AUTOMATIC SUBSCRIBER
+
+CONNECT TO VM:
+
+ssh -i slice_key -F ssh_config ubuntu@137.222.230.49
+
+FIRST VM CONFIGURATION:
+sudo apt update
+sudo apt upgrade
+uname -r (CHECK KERNEL VERSION, SHOULD BE ABOVE 5)
+sudo apt install linux-headers-$(uname -r)
+
+GTP5G:
+sudo make install
+git clone https://github.com/free5gc/gtp5g.git
+cd gtp5g
+make
+
+ROOT:
+sudo modprobe gtp5g
+
+CHECK:
+lsmod | grep gtp5g
+
+DOCKER:
+sudo apt install docker.io
+
+DOCKER COMPOSE:
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+CHANGE PERMISSIONS:
+sudo chmod +x /usr/local/bin/docker-compose
+export PATH=$PATH:/usr/local/bin
+
+CHECK DOCKER COMPOSE PATH:
+sudo docker-compose --version
+
+OTHER DEPENDENCIES:
+sudo apt install git make gcc golang
+
+FREE5GC:
+git clone https://github.com/free5gc/free5gc-compose.git
+cd free5gc-compose
+sudo docker-compose pull
+
+TEST:
+sudo docker-compose up -d
+sudo docker ps
+
+FINAL RUN:
+
+ENTER UERANSIM 
+sudo docker exec -it ueransim /bin/bash
+RUN THE CREATED UE:
+./nr-ue -c ./config/uecfg.yaml
+TEST:
+sudo docker exec -w /ueransim/binder ueransim /ueransim/binder/nr-binder 10.60.0.1 ping -c 4 8.8.8.8
+
+FINAL STEPS:
+
+sudo docker exec ueransim apt-get update
+
+TCPDUMP:
+sudo docker exec ueransim apt-get install -y tcpdump
+
+WGET:
+sudo docker exec ueransim apt-get install -y wget
+
+CURL:
+sudo docker exec ueransim apt-get install -y curl
+
+TRACEROUTE:
+sudo docker exec ueransim apt-get install -y traceroute
+
+MASCARADE:
+sudo docker exec -it upf /bin/bash
+sudo docker exec upf iptables -t nat -A POSTROUTING -s 10.60.0.0/24 -o eth0 -j MASQUERADE
+sudo docker exec upf iptables -t nat -A POSTROUTING -s 10.61.0.0/24 -o eth0 -j MASQUERADE
+
+ON THE ROOT:
+sudo sysctl -w net.ipv4.ip_forward=1
+
+LOGIN_RESP=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"username":"admin","password":"free5gc"}' \
+    http://localhost:5000/api/login)
+
+ACCESS_TOKEN=$(echo "$LOGIN_RESP" | jq -r .access_token)
+
+echo $ACCESS_TOKEN
+
+sudo docker run --rm --network container:chf -v "$PWD/ccr.json":/ccr.json curlimages/curl:latest --http2-prior-knowledge -H "Content-Type: application/json" -H "Authorization: Bearer: $ACCESS_TOKEN" --data "@/ccr.json" http://chf.free5gc.org:8000/nchf-convergedcharging/v3/chargingdata
+
+TCP DUMP:
+sudo docker exec -w /ueransim/binder ueransim tcpdump -i eth0 -n -U -w /ueransim/wireshark.pcap
+
+INSIRE UERANSIM:
+curl http://www.google.com
+ping 8.8.8.8
+
+sudo docker exec -w /ueransim/binder ueransim /ueransim/binder/nr-binder 10.60.0.1 curl -I http://www.google.com
+sudo docker exec -w /ueransim/binder ueransim /ueransim/binder/nr-binder 10.60.0.1 ping 8.8.8.8
+sudo docker exec upf iptables -t nat -L -v
+sudo docker exec -w /ueransim/binder ueransim /ueransim/binder/nr-binder 10.60.0.1 wget http://www.google.com -O test.html
+
+sudo docker cp ueransim:/ueransim/wireshark.pcap Cap/
+
+scp -i slice_key -F ssh_config ubuntu@137.222.230.47:~/free5gc-compose/Cap/wireshark.pcap wireshark.pcap

@@ -1,0 +1,4 @@
+sudo docker logs smf
+sudo docker logs upf
+sudo docker logs amf
+sudo docker logs smf

@@ -1,0 +1,3 @@
+CLONE: git clone https://github.com/free5gc/free5gc-compose.git
+START DOCKER: sudo systemctl start docker
+PULL: sudo docker-compose pull

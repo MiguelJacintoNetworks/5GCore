@@ -1,0 +1,9 @@
+KERNEL LINUX: uname -r
+GTP5G: lsmod | grep gtp5g
+linux-headers: ls /usr/src | grep headers-$(uname -r)
+Docker: docker --version
+Docker Compose: docker-compose --version
+Git: git --version
+Make: make --version
+GCC: gcc --version
+Go (Golang): go version
